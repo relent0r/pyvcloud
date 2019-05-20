@@ -885,3 +885,10 @@ def build_network_url_from_gateway_url(gateway_href):
         return network_url.replace(_GATEWAY_ADMIN_API_URL, _NETWORK_URL)
 
     return None
+
+def extract_uuid_from_url(href):
+  """ Extract the UUID from any href passed
+  """
+  href_uuid_list =  findall("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", href)
+  href_uuid = str(href_uuid_list[0])
+  return href_uuid

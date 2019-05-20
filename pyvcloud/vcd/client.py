@@ -560,6 +560,16 @@ class VAppPowerStatus(Enum):
     DEPLOYED = '2'
     UNDEPLOYED = '1'
 
+class UriObjectType(Enum):
+    """ Uri definitions for different object types """
+
+    VM = '/vApp/vm-'
+    VAPP = '/vApp/vApp-'
+    VDC = '/vdc/'
+    ORG = '/org/'
+    NETWORK = '/network/'
+    VDCSTORAGEPROFILE = '/vdcStorageProfile/'
+    TASK = '/task/'
 
 class _TaskMonitor(object):
     _DEFAULT_POLL_SEC = 5
@@ -1466,6 +1476,9 @@ class Client(object):
                 'The current user does not have access to the resource (%s).' %
                 str(wk_type).split('.')[-1])
 
+    def get_uriobject_uuid(self, vmuuid, objectType):
+        uri = self._uri + objectType + vmuuid
+        return uri
 
 def find_link(resource, rel, media_type, fail_if_absent=True, name=None):
     """Returns the link of the specified rel and type in the resource.
