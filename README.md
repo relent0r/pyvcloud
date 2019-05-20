@@ -4,6 +4,13 @@
 
 `pyvcloud` is the Python SDK for VMware vCloud Director.
 
+## Changes from vmwares implementation
+This fork has been modified to accept UUID references for objects.
+The utils module has an added class to extract and compare a UUID from an href
+The client module has an added class to help set the object href based on UUID and the client class has an added function get_uriobject_uuid which will build the href from the uuid and object type.
+
+I modifed this for use as a service provider where multitenancy stops the use of names as inputs and data structures require the use of UUIDs in the source CMDB to reference vCloud objects.
+
 ## Installation
 
 In general, `pyvcloud` can be installed with the following command:
