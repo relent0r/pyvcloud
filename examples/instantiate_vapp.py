@@ -10,6 +10,7 @@ from pyvcloud.vcd.client import BasicLoginCredentials
 from pyvcloud.vcd.client import UriObjectType
 from pyvcloud.vcd.client import _TaskMonitor
 from pyvcloud.vcd.vapp import VApp
+from pyvcloud.vcd.exceptions import BadRequestException
 
 if len(sys.argv) != 7:
     print("Usage: python3 {0} host org user password vdc_uuid configyaml".format(sys.argv[0]))
@@ -38,8 +39,11 @@ client = Client(host,
 client.set_credentials(BasicLoginCredentials(user, org, password))
 print(client._uri)
 vdc_href = Client.get_uriobject_uuid(client, vdc_uuid, UriObjectType.VDC.value)
-vapp = VApp.instantiate_vapp(client, vdc_href, cfg)
-
+try:
+  vapp = VApp.instantiate_vapp(client, vdc_href, cfg)
+  print("Task Status :" + vapp)
+except BadRequestException as e:
+  print('Exception has occured : ' + str(e))
 #task_complete = _TaskMonitor.wait_for_success(client, vapp)
 #self.client.get_task_monitor().wait_for_success(task)
-print("Task Status :" + vapp)
+
