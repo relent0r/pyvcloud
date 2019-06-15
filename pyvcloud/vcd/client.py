@@ -415,6 +415,8 @@ class EntityType(Enum):
     USER = 'application/vnd.vmware.admin.user+xml'
     VAPP = 'application/vnd.vmware.vcloud.vApp+xml'
     VAPP_TEMPLATE = 'application/vnd.vmware.vcloud.vAppTemplate+xml'
+    VAPP_INSTANTIATE = \
+        'application/vnd.vmware.vcloud.instantiateVAppTemplateParams+xml'
     VDC = 'application/vnd.vmware.vcloud.vdc+xml'
     VDC_ADMIN = 'application/vnd.vmware.admin.vdc+xml'
     VDC_REFERENCES = 'application/vnd.vmware.admin.vdcReferences+xml'
@@ -432,6 +434,7 @@ class EntityType(Enum):
     VMW_STORAGE_PROFILES = \
         'application/vnd.vmware.admin.vmwStorageProfiles+xml'
     vApp_Network = 'application/vnd.vmware.vcloud.vAppNetwork+xml'
+    VM_HARDWARE = 'application/vnd.vmware.vcloud.virtualHardwareSection+xml'
 
 
 class QueryResultFormat(Enum):
