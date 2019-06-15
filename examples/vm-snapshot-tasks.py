@@ -18,19 +18,23 @@
 import sys
 from pyvcloud.vcd.client import BasicLoginCredentials
 from pyvcloud.vcd.client import Client
-from pyvcloud.vcd.client import UriObjectType
+from pyvcloud.vcd.org import Org
+from pyvcloud.vcd.vdc import VDC
+from pyvcloud.vcd.vapp import VApp
 from pyvcloud.vcd.vm import VM
 import requests
 
 # Collect arguments.
-if len(sys.argv) != 6:
-    print("Usage: python3 {0} host org user password vmuuid".format(sys.argv[0]))
+if len(sys.argv) != 8:
+    print("Usage: python3 {0} host org user password vdc".format(sys.argv[0]))
     sys.exit(1)
 host = sys.argv[1]
 org = sys.argv[2]
 user = sys.argv[3]
 password = sys.argv[4]
-vmuuid = sys.argv[5]
+vdc = sys.argv[5]
+vapp = sys.argv[6]
+vm = sys.argv[7]
 
 # Disable warnings from self-signed certificates.
 requests.packages.urllib3.disable_warnings()
@@ -48,23 +52,35 @@ client = Client(host,
 client.set_credentials(BasicLoginCredentials(user, org, password))
 task_monitor = client.get_task_monitor()
 
+print("Fetching Org...")
+org_resource = client.get_org()
+org = Org(client, resource=org_resource)
+
+print("Fetching VDC...")
+vdc_resource = org.get_vdc(vdc)
+vdc = VDC(client, resource=vdc_resource)
+
+print("Fetching vApp...")
+vapp_resource = vdc.get_vapp(vapp)
+vapp = VApp(client, resource=vapp_resource)
+
 print("Fetching VM...")
-vmhref = client.get_uriobject_uuid(vmuuid, UriObjectType.VM.value)
-vm_resource = VM(client, href=vmhref)
+vm_resource = vapp.get_vm(vm)
+vm = VM(client, resource=vm_resource)
 
 print("Creating Snapshot...")
-snaphot_resource = vm_resource.snapshot_create(memory=False, quiesce=False)
+snaphot_resource = vm.snapshot_create(memory=False, quiesce=False)
 print("Waiting for Snapshot finish...")
 task_monitor.wait_for_success(snaphot_resource)
 
 print("Revert Back To Current Snapshot...")
-vm_resource.reload()
-snaphot_resource = vm_resource.snapshot_revert_to_current()
+vm.reload()
+snaphot_resource = vm.snapshot_revert_to_current()
 print("Waiting for Revert finish...")
 task_monitor.wait_for_success(snaphot_resource)
 
 print("Remove All Snapshot...")
-snaphot_resource = vm_resource.snapshot_remove_all()
+snaphot_resource = vm.snapshot_remove_all()
 print("Waiting for Revert finish...")
 task_monitor.wait_for_success(snaphot_resource)
 

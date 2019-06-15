@@ -21,6 +21,8 @@ from lxml import objectify
 from pyvcloud.vcd.acl import Acl
 from pyvcloud.vcd.client import E
 from pyvcloud.vcd.client import E_OVF
+from pyvcloud.vcd.client import E_OVF_RASD
+from pyvcloud.vcd.client import E_OVF_HARDWARE
 from pyvcloud.vcd.client import EntityType
 from pyvcloud.vcd.client import FenceMode
 from pyvcloud.vcd.client import find_link
@@ -31,6 +33,8 @@ from pyvcloud.vcd.client import MetadataVisibility
 from pyvcloud.vcd.client import NSMAP
 from pyvcloud.vcd.client import RelationType
 from pyvcloud.vcd.client import VCLOUD_STATUS_MAP
+from pyvcloud.vcd.client import Client
+from pyvcloud.vcd.client import UriObjectType
 from pyvcloud.vcd.exceptions import EntityNotFoundException
 from pyvcloud.vcd.exceptions import InvalidParameterException
 from pyvcloud.vcd.exceptions import InvalidStateException
@@ -1498,3 +1502,114 @@ class VApp(object):
             vdc_resource, RelationType.ADD, EntityType.CLONE_VAPP_PARAMS.value,
             resource)
         return result.Tasks.Task[0]
+    
+    def instantiate_vapp(self, vdc_href, xml_dict):
+      """
+      This function will build a vapp from a vapp template. It requires a dictionary input. Yaml config files have been used in the example.
+      It supports building multiple vapps, multiple vm's per vapp, multiple nics per vm and multiple disk per vm.
+      Currently it expects alot of optional elements. To be fixed.
+
+      :return: task object
+      """
+      
+      for vapp in xml_dict.vapps:
+        vapp_href = Client.get_uriobject_uuid(self, vapp['vapp_uuid'], UriObjectType.VAPPTEMPLATE.value)
+        network_href = Client.get_uriobject_uuid(self, vapp['network_uuid'], UriObjectType.NETWORK.value)
+    
+        # This will build each xml SourcedItem in the vApp
+        sourceditem_root = E.root()
+        for vm in vapp['vms']:
+          vm_href = Client.get_uriobject_uuid(self, vm['vm_uuid'], UriObjectType.VAPPVM.value)
+          sourced_item = E.SourcedItem(
+            E.Source(href=vm_href),
+              E.VmGeneralParams(
+                E.Name(vm['name']),
+                E.Description(vm['description']),
+                E.NeedsCustomization(vm['needs_customization'])
+                ),
+              E.InstantiationParams(
+                E_OVF_HARDWARE.VirtualHardwareSection(
+                  E_OVF.Info('Virtual hardware requirements'),
+                  E_OVF.Item(
+                    E_OVF_RASD.AllocationUnits('byte * 2^20'),
+                    E_OVF_RASD.Description('Memory Size'),
+                    E_OVF_RASD.ElementName(vm['memory'],' MB of memory'),
+                    E_OVF_RASD.InstanceID('5'),
+                    E_OVF_RASD.Reservation('0'),
+                    E_OVF_RASD.ResourceType('4'),
+                    E_OVF_RASD.VirtualQuantity(vm['memory']),
+                    E_OVF_RASD.Weight('0')
+                  ),
+                  E_OVF.Item(
+                    E_OVF_RASD.AllocationUnits('hertz * 10^6'),
+                    E_OVF_RASD.Description('Number of Virtual CPUs'),
+                    E_OVF_RASD.ElementName(vm['cpu'],'virtual CPU(s)'),
+                    E_OVF_RASD.InstanceID('5'),
+                    E_OVF_RASD.Reservation('0'),
+                    E_OVF_RASD.ResourceType('3'),
+                    E_OVF_RASD.VirtualQuantity(vm['cpu']),
+                    E_OVF_RASD.Weight('0')
+                  ),
+                type=EntityType.VM_HARDWARE.value),
+                E.NetworkConnectionSection(
+                    E_OVF.Info('Configuration parameters for logical networks'),
+                    E.PrimaryNetworkConnectionIndex('0')
+                ),
+                ),
+            )    
+          source_nic_root = E.root()
+          for nic in vm['nics']:
+                      source_nic = E.NetworkConnection(
+                          E.NetworkConnectionIndex('0'),
+                          E.IpAddress(nic['ip_address']),
+                          E.IsConnected(nic['is_connected']),
+                          E.IpAddressAllocationMode(nic['ip_allocation']),
+                          E.NetworkAdapterType(nic['adaptor_type']),
+                          network=nic['network'] 
+                        )  
+          source_nic_root.append(source_nic)
+          #print(etree.tostring(source_nic, pretty_print=True))
+          for item in source_nic_root.NetworkConnection:
+            sourced_item.InstantiationParams.NetworkConnectionSection.append(item)
+          source_cust = E.GuestCustomizationSection(
+                  E_OVF.Info('Guest Customization Config'),
+                    E.Enabled(vm['guest_cust']),
+                    E.ChangeSid(vm['change_sid']),
+                    E.ComputerName(vm['name'])
+                )
+          sourced_item.InstantiationParams.append(source_cust)  
+          print(etree.tostring(sourced_item, pretty_print=True))
+          sourceditem_root.append(sourced_item)
+    
+        # main xml build
+        instantiate_vapp_xml = E.InstantiateVAppTemplateParams(
+          E.Description(vapp['description']),
+          E.InstantiationParams(
+            E.NetworkConfigSection(
+              E_OVF.Info(vapp['description']), # {NSMAP['ovf']} WHHHYYYY
+              E.NetworkConfig(
+                E.Configuration(
+                  E.ParentNetwork(href=network_href),
+                  E.FenceMode(vapp['fence_mode'])
+                ),
+              networkName=vapp['network']
+              ),
+            ),  
+          ),    
+          E.Source(href=vapp_href),
+        name=vapp['name'], powerOn='false')
+        for item in sourceditem_root.SourcedItem:
+          instantiate_vapp_xml.append(item)
+        instantiate_vapp_xml.append(E.AllEULAsAccepted(vapp['accept_all_eulas']))
+        print(etree.tostring(instantiate_vapp_xml, pretty_print=True))
+        vdc_resource = self.get_resource(vdc_href)
+        
+        try:
+            task_resource = self.post_linked_resource(
+            vdc_resource, RelationType.ADD, EntityType.VAPP_INSTANTIATE.value,
+            instantiate_vapp_xml)
+            Client.get_task_monitor(self).wait_for_success(task_resource.Tasks.Task[0])
+            task_result = Client.get_task_monitor(self).get_status(task_resource.Tasks.Task[0])
+        except OperationNotSupportedException:
+            LOGGER.error('Operation not supported')
+      return task_result

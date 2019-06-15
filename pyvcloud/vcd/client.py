@@ -86,6 +86,14 @@ E_VMEXT = objectify.ElementMaker(
 E_OVF = objectify.ElementMaker(
     annotate=False, namespace=NSMAP['ovf'], nsmap={None: NSMAP['ovf']})
 
+E_OVF_HARDWARE = objectify.ElementMaker(
+    annotate=False, 
+    namespace=NSMAP['ovf'], 
+    nsmap={
+        None: NSMAP['ovf'],
+        'rasd': NSMAP['rasd']
+        })
+
 E_RASD = objectify.ElementMaker(
     annotate=False,
     namespace=NSMAP['rasd'],
@@ -94,6 +102,11 @@ E_RASD = objectify.ElementMaker(
         'vcloud': NSMAP['vcloud']
     })
 
+E_OVF_RASD = objectify.ElementMaker(
+    annotate=False,
+    namespace=NSMAP['rasd'],
+    nsmap={None: NSMAP['rasd']}
+)
 
 class ApiVersion(Enum):
     VERSION_29 = '29.0'
@@ -570,6 +583,8 @@ class UriObjectType(Enum):
     NETWORK = '/network/'
     VDCSTORAGEPROFILE = '/vdcStorageProfile/'
     TASK = '/task/'
+    VAPPTEMPLATE = '/vAppTemplate/vappTemplate-'
+    VAPPVM = '/vAppTemplate/vm-'
 
 class _TaskMonitor(object):
     _DEFAULT_POLL_SEC = 5
